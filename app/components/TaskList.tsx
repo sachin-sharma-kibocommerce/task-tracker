@@ -7,6 +7,7 @@ interface TaskListProps {
   tasks: Task[];
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, title: string) => void;
   filter: Filter;
 }
 
@@ -18,7 +19,7 @@ const EMPTY_MESSAGES: Record<Filter, { heading: string; sub: string }> = {
   completed: { heading: 'No completed tasks', sub: 'Finish something to see it here.' },
 };
 
-export function TaskList({ tasks, onToggle, onDelete, filter }: TaskListProps) {
+export function TaskList({ tasks, onToggle, onDelete, onRename, filter }: TaskListProps) {
   if (tasks.length === 0) {
     const msg = EMPTY_MESSAGES[filter];
     return (
@@ -42,6 +43,7 @@ export function TaskList({ tasks, onToggle, onDelete, filter }: TaskListProps) {
           task={task}
           onToggle={onToggle}
           onDelete={onDelete}
+          onRename={onRename}
         />
       ))}
     </ul>

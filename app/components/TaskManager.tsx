@@ -49,6 +49,12 @@ export function TaskManager() {
     setTasks((prev) => prev.filter((t) => t.id !== id));
   }
 
+  function renameTask(id: string, title: string) {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, title } : t))
+    );
+  }
+
   const counts = {
     all: tasks.filter((t) => !t.completed).length,
     low: tasks.filter((t) => t.priority === 'low' && !t.completed).length,
@@ -125,6 +131,7 @@ export function TaskManager() {
           tasks={filtered}
           onToggle={toggleTask}
           onDelete={deleteTask}
+          onRename={renameTask}
           filter={filter}
         />
       </main>

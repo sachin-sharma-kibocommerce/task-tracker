@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Task, Priority } from '../types';
 
 interface TaskItemProps {
   task: Task;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, title: string) => void;
 }
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; dot: string; badge: string }> = {
@@ -27,9 +28,43 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; dot: string; badge: str
   },
 };
 
-export function TaskItem({ task, onToggle, onDelete }: TaskItemProps) {
+export function TaskItem({ task, onToggle, onDelete, onRename }: TaskItemProps) {
   const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(task.title);
+  const inputRef = useRef<HTMLInputElement>(null);
   const config = PRIORITY_CONFIG[task.priority];
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  function startEditing() {
+    if (task.completed) return;
+    setDraft(task.title);
+    setEditing(true);
+  }
+
+  function commitEdit() {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== task.title) {
+      onRename(task.id, trimmed);
+    }
+    setEditing(false);
+  }
+
+  function cancelEdit() {
+    setDraft(task.title);
+    setEditing(false);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') commitEdit();
+    if (e.key === 'Escape') cancelEdit();
+  }
 
   function handleDelete() {
     setDeleting(true);
@@ -38,9 +73,9 @@ export function TaskItem({ task, onToggle, onDelete }: TaskItemProps) {
 
   return (
     <li
-      className={`group flex items-center gap-4 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 transition-all duration-200 hover:border-zinc-700 ${
-        deleting ? 'opacity-0 scale-95' : 'opacity-100'
-      }`}
+      className={`group flex items-center gap-4 bg-zinc-900 border rounded-xl px-4 py-3.5 transition-all duration-200 ${
+        editing ? 'border-indigo-500/50' : 'border-zinc-800 hover:border-zinc-700'
+      } ${deleting ? 'opacity-0 scale-95' : 'opacity-100'}`}
     >
       {/* Checkbox */}
       <button
@@ -62,14 +97,29 @@ export function TaskItem({ task, onToggle, onDelete }: TaskItemProps) {
       {/* Priority dot */}
       <span className={`shrink-0 w-2 h-2 rounded-full ${config.dot} ${task.completed ? 'opacity-30' : ''}`} />
 
-      {/* Title */}
-      <span
-        className={`flex-1 text-sm leading-snug transition-colors ${
-          task.completed ? 'line-through text-zinc-600' : 'text-zinc-200'
-        }`}
-      >
-        {task.title}
-      </span>
+      {/* Title / inline edit input */}
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={handleKeyDown}
+          className="flex-1 bg-transparent text-sm text-zinc-100 focus:outline-none placeholder:text-zinc-600"
+        />
+      ) : (
+        <span
+          onClick={startEditing}
+          title={task.completed ? undefined : 'Click to edit'}
+          className={`flex-1 text-sm leading-snug transition-colors ${
+            task.completed
+              ? 'line-through text-zinc-600 cursor-default'
+              : 'text-zinc-200 cursor-text hover:text-white'
+          }`}
+        >
+          {task.title}
+        </span>
+      )}
 
       {/* Priority badge */}
       <span
