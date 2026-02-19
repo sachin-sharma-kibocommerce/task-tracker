@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import type { Task, Priority } from '../types';
 
 interface TaskItemProps {
@@ -34,13 +34,6 @@ export function TaskItem({ task, onToggle, onDelete, onRename }: TaskItemProps) 
   const [draft, setDraft] = useState(task.title);
   const inputRef = useRef<HTMLInputElement>(null);
   const config = PRIORITY_CONFIG[task.priority];
-
-  useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
-  }, [editing]);
 
   function startEditing() {
     if (task.completed) return;
@@ -101,6 +94,7 @@ export function TaskItem({ task, onToggle, onDelete, onRename }: TaskItemProps) 
       {editing ? (
         <input
           ref={inputRef}
+          autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitEdit}
