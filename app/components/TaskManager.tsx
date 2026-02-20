@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Task, Priority, Status, Filter } from '../types';
+import type { Task, Priority, Status, Filter, SortBy } from '../types';
 import { TaskForm } from './TaskForm';
 import { TaskList } from './TaskList';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 
 const STORAGE_KEY = 'task-tracker-tasks';
 const THEME_KEY = 'task-tracker-theme';
@@ -11,15 +12,16 @@ const THEME_KEY = 'task-tracker-theme';
 export function TaskManager() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
+  const [sortBy, setSortBy] = useState<SortBy>('default');
   const [hydrated, setHydrated] = useState(false);
   const [isDark, setIsDark] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const raw = JSON.parse(stored);
-        // Migrate old tasks: convert completed boolean → status field
         const migrated = raw.map((t: any) => {
           const { completed, ...rest } = t;
           return {
@@ -48,20 +50,17 @@ export function TaskManager() {
 
   function addTask(title: string, priority: Priority, dueDate?: string) {
     setTasks((prev) => [
-      {
-        id: crypto.randomUUID(),
-        title,
-        priority,
-        status: 'not-started',
-        dueDate,
-        createdAt: Date.now(),
-      },
+      { id: crypto.randomUUID(), title, priority, status: 'not-started', dueDate, createdAt: Date.now() },
       ...prev,
     ]);
   }
 
   function setTaskStatus(id: string, status: Status) {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+  }
+
+  function setTaskPriority(id: string, priority: Priority) {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, priority } : t)));
   }
 
   function setDueDate(id: string, dueDate?: string) {
@@ -72,23 +71,45 @@ export function TaskManager() {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, title } : t)));
   }
 
-  function deleteTask(id: string) {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+  function removeTask(id: string) {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: 'removed' } : t)));
   }
 
-  const counts = {
-    all: tasks.filter((t) => t.status !== 'completed').length,
-    low: tasks.filter((t) => t.priority === 'low' && t.status !== 'completed').length,
-    medium: tasks.filter((t) => t.priority === 'medium' && t.status !== 'completed').length,
-    high: tasks.filter((t) => t.priority === 'high' && t.status !== 'completed').length,
+  function restoreTask(id: string) {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: 'not-started' } : t)));
+  }
+
+  function confirmDelete() {
+    if (pendingDelete) {
+      removeTask(pendingDelete);
+      setPendingDelete(null);
+    }
+  }
+
+  const counts: Record<Filter, number> = {
+    all:       tasks.filter((t) => t.status !== 'completed' && t.status !== 'removed').length,
+    low:       tasks.filter((t) => t.priority === 'low'    && t.status !== 'completed' && t.status !== 'removed').length,
+    medium:    tasks.filter((t) => t.priority === 'medium' && t.status !== 'completed' && t.status !== 'removed').length,
+    high:      tasks.filter((t) => t.priority === 'high'   && t.status !== 'completed' && t.status !== 'removed').length,
     completed: tasks.filter((t) => t.status === 'completed').length,
+    removed:   tasks.filter((t) => t.status === 'removed').length,
   };
 
   const filtered = tasks.filter((t) => {
+    if (filter === 'removed')   return t.status === 'removed';
     if (filter === 'completed') return t.status === 'completed';
-    if (filter === 'all') return t.status !== 'completed';
-    return t.priority === filter && t.status !== 'completed';
+    if (filter === 'all')       return t.status !== 'completed' && t.status !== 'removed';
+    return t.priority === filter && t.status !== 'completed' && t.status !== 'removed';
   });
+
+  const sorted: Task[] = sortBy === 'default' ? filtered : [...filtered].sort((a, b) => {
+    const fallback = sortBy === 'due-asc' ? Infinity : -Infinity;
+    const da = a.dueDate ? new Date(a.dueDate + 'T00:00:00').getTime() : fallback;
+    const db = b.dueDate ? new Date(b.dueDate + 'T00:00:00').getTime() : fallback;
+    return sortBy === 'due-asc' ? da - db : db - da;
+  });
+
+  const pendingTask = pendingDelete ? tasks.find((t) => t.id === pendingDelete) : null;
 
   if (!hydrated) return null;
 
@@ -106,8 +127,6 @@ export function TaskManager() {
               </div>
               <span className="font-semibold tracking-tight">Task Tracker</span>
             </div>
-
-            {/* Theme toggle */}
             <button
               onClick={toggleTheme}
               aria-label="Toggle light/dark mode"
@@ -129,45 +148,72 @@ export function TaskManager() {
         <main className="max-w-4xl mx-auto px-6 py-8 space-y-6">
           <TaskForm onAdd={addTask} />
 
-          {/* Filter tabs */}
-          <div className="flex items-center gap-1 border-b border-slate-200 dark:border-zinc-800 pb-px">
-            {(['all', 'high', 'medium', 'low', 'completed'] as Filter[]).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-2 text-sm font-medium rounded-t transition-colors relative ${
-                  filter === f
-                    ? 'text-slate-900 dark:text-zinc-100'
-                    : 'text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300'
-                }`}
-              >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-                {counts[f] > 0 && (
-                  <span className={`ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-semibold ${
+          {/* Filter tabs + Sort control */}
+          <div className="flex items-end justify-between border-b border-slate-200 dark:border-zinc-800">
+            <div className="flex items-center gap-1">
+              {(['all', 'high', 'medium', 'low', 'completed', 'removed'] as Filter[]).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-2 text-sm font-medium rounded-t transition-colors relative ${
                     filter === f
-                      ? 'bg-indigo-500 text-white'
-                      : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
-                  }`}>
-                    {counts[f]}
-                  </span>
-                )}
-                {filter === f && (
-                  <span className="absolute bottom-[-1px] left-0 right-0 h-px bg-indigo-500" />
-                )}
-              </button>
-            ))}
+                      ? 'text-slate-900 dark:text-zinc-100'
+                      : 'text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300'
+                  }`}
+                >
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  {counts[f] > 0 && (
+                    <span className={`ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-semibold ${
+                      filter === f
+                        ? f === 'removed' ? 'bg-rose-500 text-white' : 'bg-indigo-500 text-white'
+                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                    }`}>
+                      {counts[f]}
+                    </span>
+                  )}
+                  {filter === f && (
+                    <span className={`absolute bottom-[-1px] left-0 right-0 h-px ${f === 'removed' ? 'bg-rose-500' : 'bg-indigo-500'}`} />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort control */}
+            <div className="flex items-center gap-2 pb-2">
+              <span className="text-xs text-slate-400 dark:text-zinc-500">Sort</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortBy)}
+                className="text-xs bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="default">Default</option>
+                <option value="due-asc">Due date ↑</option>
+                <option value="due-desc">Due date ↓</option>
+              </select>
+            </div>
           </div>
 
           <TaskList
-            tasks={filtered}
+            tasks={sorted}
             onSetStatus={setTaskStatus}
-            onDelete={deleteTask}
+            onSetPriority={setTaskPriority}
+            onRequestDelete={setPendingDelete}
+            onRestore={restoreTask}
             onRename={renameTask}
             onSetDueDate={setDueDate}
             filter={filter}
           />
         </main>
       </div>
+
+      {/* Confirm delete modal */}
+      {pendingTask && (
+        <ConfirmDeleteModal
+          taskTitle={pendingTask.title}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }

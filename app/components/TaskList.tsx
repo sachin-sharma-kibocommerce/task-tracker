@@ -1,12 +1,14 @@
 'use client';
 
-import type { Task, Filter, Status } from '../types';
+import type { Task, Filter, Status, Priority } from '../types';
 import { TaskItem } from './TaskItem';
 
 interface TaskListProps {
   tasks: Task[];
   onSetStatus: (id: string, status: Status) => void;
-  onDelete: (id: string) => void;
+  onSetPriority: (id: string, priority: Priority) => void;
+  onRequestDelete: (id: string) => void;
+  onRestore: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onSetDueDate: (id: string, dueDate?: string) => void;
   filter: Filter;
@@ -18,9 +20,12 @@ const EMPTY_MESSAGES: Record<Filter, { heading: string; sub: string }> = {
   medium:    { heading: 'No medium-priority tasks', sub: 'Looking balanced.' },
   low:       { heading: 'No low-priority tasks',   sub: 'Nothing low-key on the list.' },
   completed: { heading: 'No completed tasks',      sub: 'Finish something to see it here.' },
+  removed:   { heading: 'No removed tasks',        sub: 'Deleted tasks will appear here.' },
 };
 
-export function TaskList({ tasks, onSetStatus, onDelete, onRename, onSetDueDate, filter }: TaskListProps) {
+export function TaskList({
+  tasks, onSetStatus, onSetPriority, onRequestDelete, onRestore, onRename, onSetDueDate, filter,
+}: TaskListProps) {
   if (tasks.length === 0) {
     const msg = EMPTY_MESSAGES[filter];
     return (
@@ -43,7 +48,9 @@ export function TaskList({ tasks, onSetStatus, onDelete, onRename, onSetDueDate,
           key={task.id}
           task={task}
           onSetStatus={onSetStatus}
-          onDelete={onDelete}
+          onSetPriority={onSetPriority}
+          onRequestDelete={onRequestDelete}
+          onRestore={onRestore}
           onRename={onRename}
           onSetDueDate={onSetDueDate}
         />
