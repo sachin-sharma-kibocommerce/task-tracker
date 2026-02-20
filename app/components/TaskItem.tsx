@@ -69,6 +69,7 @@ export function TaskItem({ task, onToggle, onDelete, onRename }: TaskItemProps) 
       className={`group flex items-center gap-4 bg-zinc-900 border rounded-xl px-4 py-3.5 transition-all duration-200 ${
         editing ? 'border-indigo-500/50' : 'border-zinc-800 hover:border-zinc-700'
       } ${deleting ? 'opacity-0 scale-95' : 'opacity-100'}`}
+      style={!editing && task.priority === 'high' && !task.completed ? { borderLeftColor: 'rgb(239 68 68 / 0.5)', borderLeftWidth: '2px' } : undefined}
     >
       {/* Checkbox */}
       <button
