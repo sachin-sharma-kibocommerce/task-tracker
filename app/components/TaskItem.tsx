@@ -1,87 +1,152 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import type { Task, Priority } from '../types';
+import type { Task, Priority, Status } from '../types';
 
 interface TaskItemProps {
   task: Task;
-  onToggle: (id: string) => void;
+  onSetStatus: (id: string, status: Status) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
+  onSetDueDate: (id: string, dueDate?: string) => void;
 }
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; dot: string; badge: string }> = {
   high: {
     label: 'High',
     dot: 'bg-rose-500',
-    badge: 'bg-rose-500/10 text-rose-400 ring-1 ring-rose-500/20',
+    badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/20',
   },
   medium: {
     label: 'Medium',
     dot: 'bg-amber-500',
-    badge: 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20',
+    badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20',
   },
   low: {
     label: 'Low',
     dot: 'bg-emerald-500',
-    badge: 'bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20',
+    badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20',
   },
 };
 
-export function TaskItem({ task, onToggle, onDelete, onRename }: TaskItemProps) {
+const STATUS_CONFIG: Record<Status, { label: string; classes: string }> = {
+  'not-started': {
+    label: 'Not Started',
+    classes: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400',
+  },
+  'in-progress': {
+    label: 'In Progress',
+    classes: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
+  },
+  completed: {
+    label: 'Completed',
+    classes: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
+  },
+};
+
+function formatDueDate(dateStr: string): { text: string; urgency: 'overdue' | 'today' | 'soon' | 'normal' } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dateStr + 'T00:00:00');
+  const diffDays = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  const text = diffDays === 0
+    ? 'Today'
+    : due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  if (diffDays < 0)  return { text, urgency: 'overdue' };
+  if (diffDays === 0) return { text, urgency: 'today' };
+  if (diffDays <= 2)  return { text, urgency: 'soon' };
+  return { text, urgency: 'normal' };
+}
+
+function dueDateColorClass(urgency: 'overdue' | 'today' | 'soon' | 'normal', done: boolean) {
+  if (done) return 'text-slate-400 dark:text-zinc-600';
+  return {
+    overdue: 'text-rose-500 dark:text-rose-400',
+    today:   'text-amber-500 dark:text-amber-400',
+    soon:    'text-orange-500 dark:text-orange-400',
+    normal:  'text-slate-500 dark:text-zinc-400',
+  }[urgency];
+}
+
+export function TaskItem({ task, onSetStatus, onDelete, onRename, onSetDueDate }: TaskItemProps) {
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.title);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const config = PRIORITY_CONFIG[task.priority];
+  const [editingDate, setEditingDate] = useState(false);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
+  const isCompleted = task.status === 'completed';
+  const config = PRIORITY_CONFIG[task.priority];
+  const dueInfo = task.dueDate ? formatDueDate(task.dueDate) : null;
+
+  /* ── title editing ── */
   function startEditing() {
-    if (task.completed) return;
+    if (isCompleted) return;
     setDraft(task.title);
     setEditing(true);
   }
-
   function commitEdit() {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== task.title) {
-      onRename(task.id, trimmed);
-    }
+    if (trimmed && trimmed !== task.title) onRename(task.id, trimmed);
     setEditing(false);
   }
-
   function cancelEdit() {
     setDraft(task.title);
     setEditing(false);
   }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function handleTitleKey(e: React.KeyboardEvent) {
     if (e.key === 'Enter') commitEdit();
     if (e.key === 'Escape') cancelEdit();
   }
 
+  /* ── due date editing ── */
+  function handleDateClick() {
+    setEditingDate(true);
+    setTimeout(() => {
+      try { dateInputRef.current?.showPicker(); } catch { dateInputRef.current?.focus(); }
+    }, 50);
+  }
+  function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
+    onSetDueDate(task.id, e.target.value || undefined);
+    setEditingDate(false);
+  }
+
+  /* ── delete ── */
   function handleDelete() {
     setDeleting(true);
     setTimeout(() => onDelete(task.id), 200);
   }
 
+  /* ── checkbox quick-toggle ── */
+  function handleCheckbox() {
+    onSetStatus(task.id, isCompleted ? 'not-started' : 'completed');
+  }
+
   return (
     <li
-      className={`group flex items-center gap-4 bg-zinc-900 border rounded-xl px-4 py-3.5 transition-all duration-200 ${
-        editing ? 'border-indigo-500/50' : 'border-zinc-800 hover:border-zinc-700'
+      className={`group flex items-center gap-3 bg-white dark:bg-zinc-900 border rounded-xl px-4 py-3.5 transition-all duration-200 ${
+        editing
+          ? 'border-indigo-500/50'
+          : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700'
       } ${deleting ? 'opacity-0 scale-95' : 'opacity-100'}`}
-      style={!editing && task.priority === 'high' && !task.completed ? { borderLeftColor: 'rgb(239 68 68 / 0.5)', borderLeftWidth: '2px' } : undefined}
+      style={
+        !editing && task.priority === 'high' && !isCompleted
+          ? { borderLeftColor: 'rgb(239 68 68 / 0.5)', borderLeftWidth: '2px' }
+          : undefined
+      }
     >
       {/* Checkbox */}
       <button
-        onClick={() => onToggle(task.id)}
-        aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
+        onClick={handleCheckbox}
+        aria-label={isCompleted ? 'Mark incomplete' : 'Mark complete'}
         className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-          task.completed
+          isCompleted
             ? 'bg-indigo-500 border-indigo-500'
-            : 'border-zinc-600 hover:border-indigo-400'
+            : 'border-slate-300 dark:border-zinc-600 hover:border-indigo-400'
         }`}
       >
-        {task.completed && (
+        {isCompleted && (
           <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
@@ -89,47 +154,81 @@ export function TaskItem({ task, onToggle, onDelete, onRename }: TaskItemProps) 
       </button>
 
       {/* Priority dot */}
-      <span className={`shrink-0 w-2 h-2 rounded-full ${config.dot} ${task.completed ? 'opacity-30' : ''}`} />
+      <span className={`shrink-0 w-2 h-2 rounded-full ${config.dot} ${isCompleted ? 'opacity-30' : ''}`} />
 
-      {/* Title / inline edit input */}
+      {/* Title */}
       {editing ? (
         <input
-          ref={inputRef}
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitEdit}
-          onKeyDown={handleKeyDown}
-          className="flex-1 bg-transparent text-sm text-zinc-100 focus:outline-none placeholder:text-zinc-600"
+          onKeyDown={handleTitleKey}
+          className="flex-1 min-w-0 bg-transparent text-sm text-slate-900 dark:text-zinc-100 focus:outline-none"
         />
       ) : (
         <span
           onClick={startEditing}
-          title={task.completed ? undefined : 'Click to edit'}
-          className={`flex-1 text-sm leading-snug transition-colors ${
-            task.completed
-              ? 'line-through text-zinc-600 cursor-default'
-              : 'text-zinc-200 cursor-text hover:text-white'
+          title={isCompleted ? undefined : 'Click to edit'}
+          className={`flex-1 min-w-0 truncate text-sm leading-snug transition-colors ${
+            isCompleted
+              ? 'line-through text-slate-400 dark:text-zinc-600 cursor-default'
+              : 'text-slate-800 dark:text-zinc-200 cursor-text hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           {task.title}
         </span>
       )}
 
-      {/* Priority badge */}
-      <span
-        className={`shrink-0 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${config.badge} ${
-          task.completed ? 'opacity-40' : ''
-        }`}
+      {/* Due date */}
+      <div className="shrink-0">
+        {editingDate ? (
+          <input
+            ref={dateInputRef}
+            type="date"
+            defaultValue={task.dueDate ?? ''}
+            onChange={handleDateChange}
+            onBlur={() => setEditingDate(false)}
+            className="text-xs bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-md px-2 py-1 text-slate-600 dark:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+        ) : (
+          <button
+            onClick={handleDateClick}
+            className={`flex items-center gap-1 text-xs rounded-md px-2 py-1 transition-colors ${
+              dueInfo
+                ? `${dueDateColorClass(dueInfo.urgency, isCompleted)} hover:bg-slate-100 dark:hover:bg-zinc-800`
+                : 'text-slate-300 dark:text-zinc-700 hover:text-slate-400 dark:hover:text-zinc-500 hover:bg-slate-100 dark:hover:bg-zinc-800 opacity-0 group-hover:opacity-100'
+            }`}
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
+            </svg>
+            {dueInfo ? dueInfo.text : 'Add date'}
+          </button>
+        )}
+      </div>
+
+      {/* Status select */}
+      <select
+        value={task.status}
+        onChange={(e) => onSetStatus(task.id, e.target.value as Status)}
+        className={`shrink-0 text-xs rounded-md px-2 py-1 border-0 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer font-medium transition-colors ${STATUS_CONFIG[task.status].classes}`}
       >
+        <option value="not-started">Not Started</option>
+        <option value="in-progress">In Progress</option>
+        <option value="completed">Completed</option>
+      </select>
+
+      {/* Priority badge */}
+      <span className={`shrink-0 hidden lg:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${config.badge} ${isCompleted ? 'opacity-40' : ''}`}>
         {config.label}
       </span>
 
-      {/* Delete button */}
+      {/* Delete */}
       <button
         onClick={handleDelete}
         aria-label="Delete task"
-        className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded-md text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+        className="shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-400 dark:text-zinc-600 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
