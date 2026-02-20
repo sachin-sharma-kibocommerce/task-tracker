@@ -85,8 +85,18 @@ export function TaskManager() {
             <span className="font-semibold text-zinc-100 tracking-tight">Task Tracker</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <span className="tabular-nums">{counts.all}</span>
-            <span>remaining</span>
+            <span className="tabular-nums font-medium text-zinc-300">{counts.completed}</span>
+            <span>of</span>
+            <span className="tabular-nums font-medium text-zinc-300">{tasks.length}</span>
+            <span>completed</span>
+            {tasks.length > 0 && (
+              <div className="ml-2 w-20 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                <div
+                  className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                  style={{ width: `${tasks.length === 0 ? 0 : (counts.completed / tasks.length) * 100}%` }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </header>
