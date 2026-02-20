@@ -42,7 +42,19 @@ export function TaskList({
   }
 
   return (
-    <ul className="space-y-2">
+    <div className="space-y-2">
+      {/* Column headers */}
+      <div className="flex items-center gap-3 px-4 pb-1 border-b border-slate-100 dark:border-zinc-800">
+        <span className="shrink-0 w-5 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-600">#</span>
+        <span className="shrink-0 w-2" />
+        <span className="flex-1 min-w-0 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-600">Task</span>
+        <span className="shrink-0 w-[90px] text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-600">Due Date</span>
+        <span className="shrink-0 w-[112px] text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-600">Status</span>
+        <span className="shrink-0 w-[76px] text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-600">Priority</span>
+        <span className="shrink-0 w-6" />
+      </div>
+
+      <ul className="space-y-2">
       {tasks.map((task, index) => (
         <TaskItem
           key={task.id}
@@ -56,6 +68,7 @@ export function TaskList({
           onSetDueDate={onSetDueDate}
         />
       ))}
-    </ul>
+      </ul>
+    </div>
   );
 }

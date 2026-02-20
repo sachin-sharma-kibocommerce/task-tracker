@@ -148,7 +148,7 @@ export function TaskItem({
 
       {/* Due date */}
       {!isRemoved && (
-        <div className="shrink-0">
+        <div className="shrink-0 w-[90px]">
           {editingDate ? (
             <input
               ref={dateInputRef}
@@ -181,7 +181,7 @@ export function TaskItem({
         <select
           value={task.status}
           onChange={(e) => onSetStatus(task.id, e.target.value as Status)}
-          className={`shrink-0 text-xs rounded-md px-2 py-1 border-0 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer font-medium transition-colors ${STATUS_CONFIG[task.status]?.classes ?? ''}`}
+          className={`shrink-0 w-[112px] text-xs rounded-md px-2 py-1 border-0 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer font-medium transition-colors ${STATUS_CONFIG[task.status]?.classes ?? ''}`}
         >
           <option value="not-started">Not Started</option>
           <option value="in-progress">In Progress</option>
@@ -194,7 +194,7 @@ export function TaskItem({
         value={task.priority}
         onChange={(e) => onSetPriority(task.id, e.target.value as Priority)}
         disabled={isRemoved}
-        className={`shrink-0 text-xs rounded-full px-2 py-0.5 border-0 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium transition-colors ${
+        className={`shrink-0 w-[76px] text-xs rounded-full px-2 py-0.5 border-0 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium transition-colors ${
           isRemoved ? 'opacity-40 cursor-default' : 'cursor-pointer'
         } ${PRIORITY_SELECT_CLASS[task.priority]}`}
       >
