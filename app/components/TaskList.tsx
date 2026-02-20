@@ -43,10 +43,11 @@ export function TaskList({
 
   return (
     <ul className="space-y-2">
-      {tasks.map((task) => (
+      {tasks.map((task, index) => (
         <TaskItem
           key={task.id}
           task={task}
+          index={index + 1}
           onSetStatus={onSetStatus}
           onSetPriority={onSetPriority}
           onRequestDelete={onRequestDelete}

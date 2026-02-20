@@ -5,6 +5,7 @@ import type { Task, Priority, Status } from '../types';
 
 interface TaskItemProps {
   task: Task;
+  index: number;
   onSetStatus: (id: string, status: Status) => void;
   onSetPriority: (id: string, priority: Priority) => void;
   onRequestDelete: (id: string) => void;
@@ -47,7 +48,7 @@ function dueDateColorClass(urgency: string, done: boolean) {
 }
 
 export function TaskItem({
-  task, onSetStatus, onSetPriority, onRequestDelete, onRestore, onRename, onSetDueDate,
+  task, index, onSetStatus, onSetPriority, onRequestDelete, onRestore, onRename, onSetDueDate,
 }: TaskItemProps) {
   const [removing, setRemoving] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -97,10 +98,6 @@ export function TaskItem({
       setRemoving(false);
     }, 150);
   }
-  function handleCheckbox() {
-    if (isRemoved) return;
-    onSetStatus(task.id, isCompleted ? 'not-started' : 'completed');
-  }
 
   return (
     <li
@@ -117,25 +114,10 @@ export function TaskItem({
           : undefined
       }
     >
-      {/* Checkbox */}
-      <button
-        onClick={handleCheckbox}
-        disabled={isRemoved}
-        aria-label={isCompleted ? 'Mark incomplete' : 'Mark complete'}
-        className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-          isCompleted
-            ? 'bg-indigo-500 border-indigo-500'
-            : isRemoved
-            ? 'border-slate-200 dark:border-zinc-700 cursor-default'
-            : 'border-slate-300 dark:border-zinc-600 hover:border-indigo-400'
-        }`}
-      >
-        {isCompleted && (
-          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-        )}
-      </button>
+      {/* Row number */}
+      <span className="shrink-0 w-5 text-right text-xs font-medium tabular-nums text-slate-400 dark:text-zinc-600 select-none">
+        {index}
+      </span>
 
       {/* Priority dot */}
       <span className={`shrink-0 w-2 h-2 rounded-full ${PRIORITY_DOT[task.priority]} ${isCompleted || isRemoved ? 'opacity-30' : ''}`} />
